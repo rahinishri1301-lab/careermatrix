@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../data/app_state.dart';
 import '../../models/models.dart';
 import '../../widgets/app_bottom_nav.dart';
+import '../auth/login_screen.dart';
 import 'student_dashboard.dart';
 import 'alumni_dashboard.dart';
 import 'mentor_dashboard.dart';
@@ -16,6 +17,14 @@ import '../company/company_portal_screen.dart';
 /// The root shell shown after login/registration. Provides a role-aware
 /// bottom navigation bar so every core feature is reachable in 1 tap from
 /// here (2-3 taps from anywhere in the app).
+///
+/// Also acts as the app's protected-route boundary: every dashboard and
+/// everything reachable from it lives behind this widget, and this widget
+/// refuses to render dashboard content unless [AppState.isAuthenticated] is
+/// true — falling back to [LoginScreen] otherwise. In normal use this guard
+/// never fires (Splash/Login/Register all set the session before navigating
+/// here), but it protects against any future code path reaching this route
+/// without an active session.
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
 
@@ -28,6 +37,29 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: AppState.instance.isAuthenticated,
+      builder: (context, authenticated, _) {
+        if (!authenticated) {
+          // No active session — redirect to Login instead of exposing any
+          // dashboard content.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const LoginScreen()),
+              (route) => false,
+            );
+          });
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        return _buildShell(context);
+      },
+    );
+  }
+
+  Widget _buildShell(BuildContext context) {
     return ValueListenableBuilder<UserRole>(
       valueListenable: AppState.instance.currentRole,
       builder: (context, role, _) {

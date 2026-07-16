@@ -5,7 +5,7 @@
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Career Matrix - AI-powered career ecosystem for Students, Alumni, Mentors and Companies.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

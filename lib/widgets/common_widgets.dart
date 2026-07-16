@@ -88,6 +88,31 @@ class AppSearchField extends StatelessWidget {
   }
 }
 
+/// An ElevatedButton that swaps its label for a spinner while [loading] is
+/// true. Uses the app's existing ElevatedButton theme untouched, so visual
+/// design (color, shape, size) is unchanged — only the content differs.
+class LoadingElevatedButton extends StatelessWidget {
+  final bool loading;
+  final VoidCallback? onPressed;
+  final Widget child;
+
+  const LoadingElevatedButton({super.key, required this.loading, required this.onPressed, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      onPressed: loading ? null : onPressed,
+      child: loading
+          ? const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
+            )
+          : child,
+    );
+  }
+}
+
 /// Generic empty-state placeholder.
 class EmptyState extends StatelessWidget {
   final IconData icon;

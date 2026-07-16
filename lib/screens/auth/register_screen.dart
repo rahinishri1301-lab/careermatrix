@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../data/app_state.dart';
 import '../../models/models.dart';
+import '../../services/auth_service.dart';
 import '../../theme/app_colors.dart';
+import '../../utils/validators.dart';
+import '../../widgets/common_widgets.dart';
 import '../dashboard/home_shell.dart';
 import 'role_select_sheet.dart';
 
@@ -13,15 +16,60 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _orgController = TextEditingController();
+  final _passwordController = TextEditingController();
+
   UserRole _role = UserRole.student;
   int _step = 0;
+  bool _isLoading = false;
 
-  void _createAccount() {
-    AppState.instance.currentRole.value = _role;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const HomeShell()),
-      (route) => false,
-    );
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _orgController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _createAccount() async {
+    final form = _formKey.currentState;
+    if (form == null || !form.validate()) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await AuthService.instance.register(
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        role: _role,
+      );
+      final session = await AuthService.instance.restoreSession();
+      if (session == null) throw Exception('Session could not be restored');
+
+      AppState.instance.applySession(role: session.role, name: session.name, email: session.email);
+
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeShell()),
+        (route) => false,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Registration failed. Please try again.'), backgroundColor: AppColors.danger),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _goToDetailsStep() {
+    // Step 0 has no text fields to validate (role picker only) — just advance.
+    setState(() => _step = 1);
   }
 
   @override
@@ -62,7 +110,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 }),
               ),
               const SizedBox(height: 26),
-              if (_step == 0) _buildRoleStep() else _buildDetailsStep(),
+              if (_step == 0)
+                _buildRoleStep()
+              else
+                Form(
+                  key: _formKey,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  child: _buildDetailsStep(),
+                ),
             ],
           ),
         ),
@@ -113,7 +168,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             )),
         const SizedBox(height: 8),
-        ElevatedButton(onPressed: () => setState(() => _step = 1), child: const Text('Continue')),
+        ElevatedButton(onPressed: _goToDetailsStep, child: const Text('Continue')),
       ],
     );
   }
@@ -126,30 +181,60 @@ class _RegisterScreenState extends State<RegisterScreen> {
         const SizedBox(height: 16),
         const Text('Full name', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
         const SizedBox(height: 8),
-        const TextField(decoration: InputDecoration(hintText: 'Enter your full name')),
+        TextFormField(
+          controller: _nameController,
+          enabled: !_isLoading,
+          textInputAction: TextInputAction.next,
+          validator: Validators.name,
+          decoration: const InputDecoration(hintText: 'Enter your full name'),
+        ),
         const SizedBox(height: 16),
         const Text('Email address', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
         const SizedBox(height: 8),
-        const TextField(decoration: InputDecoration(hintText: 'you@example.com')),
+        TextFormField(
+          controller: _emailController,
+          enabled: !_isLoading,
+          keyboardType: TextInputType.emailAddress,
+          textInputAction: TextInputAction.next,
+          validator: Validators.email,
+          decoration: const InputDecoration(hintText: 'you@example.com'),
+        ),
         const SizedBox(height: 16),
         Text(_role == UserRole.company ? 'Company name' : 'Institution / Organization',
             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
         const SizedBox(height: 8),
-        TextField(decoration: InputDecoration(hintText: _role == UserRole.company ? 'e.g. Acme Corp' : 'e.g. NIT Trichy')),
+        TextFormField(
+          controller: _orgController,
+          enabled: !_isLoading,
+          textInputAction: TextInputAction.next,
+          validator: Validators.organization,
+          decoration: InputDecoration(hintText: _role == UserRole.company ? 'e.g. Acme Corp' : 'e.g. NIT Trichy'),
+        ),
         const SizedBox(height: 16),
         const Text('Password', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
         const SizedBox(height: 8),
-        const TextField(obscureText: true, decoration: InputDecoration(hintText: '••••••••')),
+        TextFormField(
+          controller: _passwordController,
+          enabled: !_isLoading,
+          obscureText: true,
+          textInputAction: TextInputAction.done,
+          validator: Validators.password,
+          onFieldSubmitted: (_) => _createAccount(),
+          decoration: const InputDecoration(hintText: '••••••••'),
+        ),
         const SizedBox(height: 24),
         Row(
           children: [
             Expanded(
-              child: OutlinedButton(onPressed: () => setState(() => _step = 0), child: const Text('Back')),
+              child: OutlinedButton(
+                onPressed: _isLoading ? null : () => setState(() => _step = 0),
+                child: const Text('Back'),
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
               flex: 2,
-              child: ElevatedButton(onPressed: _createAccount, child: const Text('Create Account')),
+              child: LoadingElevatedButton(loading: _isLoading, onPressed: _createAccount, child: const Text('Create Account')),
             ),
           ],
         ),

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../data/app_state.dart';
+import '../../services/auth_service.dart';
 import '../../theme/app_colors.dart';
+import '../dashboard/home_shell.dart';
 import '../onboarding/onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -22,17 +25,37 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     _fade = CurvedAnimation(parent: _controller, curve: const Interval(0.3, 1.0, curve: Curves.easeIn));
     _controller.forward();
 
-    Future.delayed(const Duration(milliseconds: 2200), () {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (_, __, ___) => const OnboardingScreen(),
-            transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
-            transitionDuration: const Duration(milliseconds: 500),
-          ),
-        );
-      }
-    });
+    _bootstrap();
+  }
+
+  /// Waits for the splash animation, then checks for a persisted session
+  /// (auto-login) and routes straight to the role-specific dashboard if one
+  /// exists — otherwise falls through to onboarding.
+  Future<void> _bootstrap() async {
+    final sessionFuture = AuthService.instance.restoreSession();
+    await Future.delayed(const Duration(milliseconds: 2200));
+    final session = await sessionFuture;
+    if (!mounted) return;
+
+    if (session != null) {
+      AppState.instance.applySession(role: session.role, name: session.name, email: session.email);
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (_, __, ___) => const HomeShell(),
+          transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
+          transitionDuration: const Duration(milliseconds: 500),
+        ),
+      );
+      return;
+    }
+
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => const OnboardingScreen(),
+        transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
+        transitionDuration: const Duration(milliseconds: 500),
+      ),
+    );
   }
 
   @override

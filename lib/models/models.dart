@@ -1,5 +1,4 @@
 /// Core mock models for Career Matrix frontend.
-library models;
 
 enum UserRole { student, alumni, mentor, company, admin }
 

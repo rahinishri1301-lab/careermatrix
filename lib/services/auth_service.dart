@@ -1,196 +1,97 @@
-// lib/services/auth_service.dart
-//
-// PHASE 2 NOTE: The Node.js + Express + MongoDB backend does not exist
-// yet, so every method below simulates a network round trip and
-// returns believable mock data. Each method already has the real
-// `http` call written out in a comment directly above it — when the
-// backend is ready, delete the mock body and uncomment the real one.
-//
-// No other file in the app needs to change: AuthRepository only talks
-// to this class's public methods.
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/models.dart';
 
-import 'dart:async';
-import 'dart:math';
-// import 'dart:convert';
-// import 'package:http/http.dart' as http;
-
-import '../models/auth_response_model.dart';
-import '../models/user_model.dart';
-import '../utils/app_constants.dart';
-
+/// Handles authentication session persistence.
+///
+/// This is a frontend-only mock: `login()`/`register()` simulate a network
+/// call with a short delay and always succeed once form validation passes.
+/// Swap the body of [login]/[register] for real API calls when the backend
+/// is ready — the session-persistence contract (save/restore/clear) stays
+/// the same.
 class AuthService {
-  // final String _baseUrl = AppConstants.baseUrl;
+  AuthService._();
+  static final AuthService instance = AuthService._();
 
-  Future<AuthResponseModel> login({
-    required String identifier, // email or phone
-    required String password,
-  }) async {
-    await _simulateLatency();
+  static const _kLoggedIn = 'auth_logged_in';
+  static const _kRole = 'auth_role';
+  static const _kName = 'auth_name';
+  static const _kEmail = 'auth_email';
 
-    // ---- REAL IMPLEMENTATION (uncomment when backend is live) ----
-    // final res = await http.post(
-    //   Uri.parse('$_baseUrl${AppConstants.loginEndpoint}'),
-    //   headers: {'Content-Type': 'application/json'},
-    //   body: jsonEncode({'identifier': identifier, 'password': password}),
-    // );
-    // final body = jsonDecode(res.body);
-    // if (res.statusCode == 200) return AuthResponseModel.fromJson(body);
-    // return AuthResponseModel.failure(body['message'] ?? 'Login failed');
-
-    if (password.length < 8) {
-      return AuthResponseModel.failure('Invalid credentials');
-    }
-
-    final user = UserModel(
-      id: _fakeId(),
-      fullName: 'Career Matrix User',
-      email: identifier.contains('@') ? identifier : 'user@example.com',
-      phone: identifier.contains('@') ? '+910000000000' : identifier,
-      role: UserRole.student,
-      isVerified: true,
-      createdAt: DateTime.now().subtract(const Duration(days: 30)),
-    );
-
-    return AuthResponseModel(
-      success: true,
-      message: 'Login successful',
-      user: user,
-      accessToken: _fakeJwt(),
-      refreshToken: _fakeJwt(),
-      expiresAt: DateTime.now().add(AppConstants.mockSessionLifetime),
-    );
-  }
-
-  Future<AuthResponseModel> register({
-    required String fullName,
+  /// Simulates an authentication call. Returns after a short delay so the
+  /// UI can show a loading state, matching a real network round-trip.
+  Future<void> login({
     required String email,
-    required String phone,
     required String password,
     required UserRole role,
   }) async {
-    await _simulateLatency();
-
-    // ---- REAL IMPLEMENTATION ----
-    // final res = await http.post(
-    //   Uri.parse('$_baseUrl${AppConstants.registerEndpoint}'),
-    //   headers: {'Content-Type': 'application/json'},
-    //   body: jsonEncode({
-    //     'fullName': fullName,
-    //     'email': email,
-    //     'phone': phone,
-    //     'password': password,
-    //     'role': role.apiValue,
-    //   }),
-    // );
-    // final body = jsonDecode(res.body);
-    // if (res.statusCode == 201) return AuthResponseModel.fromJson(body);
-    // return AuthResponseModel.failure(body['message'] ?? 'Registration failed');
-
-    final user = UserModel(
-      id: _fakeId(),
-      fullName: fullName,
-      email: email,
-      phone: phone,
-      role: role,
-      isVerified: false,
-      createdAt: DateTime.now(),
-    );
-
-    return AuthResponseModel(
-      success: true,
-      message: 'Registration successful',
-      user: user,
-      accessToken: _fakeJwt(),
-      refreshToken: _fakeJwt(),
-      expiresAt: DateTime.now().add(AppConstants.mockSessionLifetime),
-    );
+    await Future.delayed(const Duration(milliseconds: 900));
+    final name = _nameFromEmail(email);
+    await _saveSession(role: role, name: name, email: email);
   }
 
-  /// Step 1 of forgot-password flow: request an OTP.
-  Future<AuthResponseModel> sendOtp({required String identifier}) async {
-    await _simulateLatency();
-
-    // ---- REAL IMPLEMENTATION ----
-    // final res = await http.post(
-    //   Uri.parse('$_baseUrl${AppConstants.forgotPasswordEndpoint}'),
-    //   headers: {'Content-Type': 'application/json'},
-    //   body: jsonEncode({'identifier': identifier}),
-    // );
-    // ...
-
-    return AuthResponseModel(
-      success: true,
-      message: 'OTP sent to $identifier',
-    );
-  }
-
-  /// Step 2: verify the OTP the user typed in.
-  Future<AuthResponseModel> verifyOtp({
-    required String identifier,
-    required String otp,
+  Future<void> register({
+    required String name,
+    required String email,
+    required String password,
+    required UserRole role,
   }) async {
-    await _simulateLatency();
-
-    // ---- REAL IMPLEMENTATION ----
-    // final res = await http.post(
-    //   Uri.parse('$_baseUrl${AppConstants.verifyOtpEndpoint}'),
-    //   headers: {'Content-Type': 'application/json'},
-    //   body: jsonEncode({'identifier': identifier, 'otp': otp}),
-    // );
-    // ...
-
-    // Mock rule: any 6-digit code works so the flow is demoable offline.
-    if (otp.length != AppConstants.otpLength) {
-      return AuthResponseModel.failure('Invalid OTP');
-    }
-    return const AuthResponseModel(success: true, message: 'OTP verified');
+    await Future.delayed(const Duration(milliseconds: 900));
+    await _saveSession(role: role, name: name, email: email);
   }
 
-  /// Step 3: set the new password once OTP is verified.
-  Future<AuthResponseModel> resetPassword({
-    required String identifier,
-    required String newPassword,
-  }) async {
-    await _simulateLatency();
+  /// Clears the persisted session. Called on logout.
+  Future<void> logout() async {
+    await Future.delayed(const Duration(milliseconds: 400));
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_kLoggedIn);
+    await prefs.remove(_kRole);
+    await prefs.remove(_kName);
+    await prefs.remove(_kEmail);
+  }
 
-    // ---- REAL IMPLEMENTATION ----
-    // final res = await http.post(
-    //   Uri.parse('$_baseUrl${AppConstants.resetPasswordEndpoint}'),
-    //   headers: {'Content-Type': 'application/json'},
-    //   body: jsonEncode({'identifier': identifier, 'newPassword': newPassword}),
-    // );
-    // ...
+  /// Restores a previously persisted session, if any. Used for auto-login
+  /// on app start.
+  Future<AuthSession?> restoreSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    final loggedIn = prefs.getBool(_kLoggedIn) ?? false;
+    if (!loggedIn) return null;
 
-    return const AuthResponseModel(
-      success: true,
-      message: 'Password reset successful',
+    final roleKey = prefs.getString(_kRole);
+    final role = UserRole.values.firstWhere(
+      (r) => r.key == roleKey,
+      orElse: () => UserRole.student,
     );
+    final name = prefs.getString(_kName) ?? 'Guest User';
+    final email = prefs.getString(_kEmail) ?? '';
+    return AuthSession(role: role, name: name, email: email);
   }
 
-  Future<void> logout({String? refreshToken}) async {
-    await _simulateLatency(short: true);
-    // ---- REAL IMPLEMENTATION ----
-    // await http.post(
-    //   Uri.parse('$_baseUrl${AppConstants.logoutEndpoint}'),
-    //   headers: {'Content-Type': 'application/json'},
-    //   body: jsonEncode({'refreshToken': refreshToken}),
-    // );
+  Future<void> _saveSession({
+    required UserRole role,
+    required String name,
+    required String email,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kLoggedIn, true);
+    await prefs.setString(_kRole, role.key);
+    await prefs.setString(_kName, name);
+    await prefs.setString(_kEmail, email);
   }
 
-  Future<void> _simulateLatency({bool short = false}) {
-    final ms = short ? 300 : 700 + Random().nextInt(400);
-    return Future.delayed(Duration(milliseconds: ms));
+  String _nameFromEmail(String email) {
+    final handle = email.split('@').first.replaceAll(RegExp(r'[._]'), ' ').trim();
+    if (handle.isEmpty) return 'Guest User';
+    return handle
+        .split(' ')
+        .where((w) => w.isNotEmpty)
+        .map((w) => w[0].toUpperCase() + w.substring(1))
+        .join(' ');
   }
+}
 
-  String _fakeId() =>
-      DateTime.now().millisecondsSinceEpoch.toRadixString(16);
-
-  String _fakeJwt() {
-    // Not a real JWT — just a plausible-looking opaque token for the
-    // mock layer. Replace with the token the real backend returns.
-    final rand = Random();
-    final part = List.generate(16, (_) => rand.nextInt(16).toRadixString(16))
-        .join();
-    return 'mock.$part.token';
-  }
+class AuthSession {
+  final UserRole role;
+  final String name;
+  final String email;
+  const AuthSession({required this.role, required this.name, required this.email});
 }

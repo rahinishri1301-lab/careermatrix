@@ -1,64 +1,41 @@
-// lib/utils/validators.dart
+/// Shared form-field validators for auth screens. Kept dependency-free
+/// (plain functions returning an error string or null) to work directly
+/// with Flutter's built-in `Form` / `TextFormField.validator`.
 class Validators {
   Validators._();
 
-  static final RegExp _emailRegex =
-      RegExp(r'^[\w\.\-]+@([\w\-]+\.)+[\w\-]{2,4}$');
-  static final RegExp _phoneRegex = RegExp(r'^\+?[0-9]{7,15}$');
+  static final RegExp _emailRegex = RegExp(r'^[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}$');
 
-  /// Accepts either a valid email OR a valid phone number.
-  static String? emailOrPhone(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Email or phone number is required';
-    }
-    final v = value.trim();
-    if (_emailRegex.hasMatch(v) || _phoneRegex.hasMatch(v)) return null;
-    return 'Enter a valid email or phone number';
+  static String? name(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return 'Please enter your full name';
+    if (v.length < 2) return 'Name looks too short';
+    return null;
   }
 
   static String? email(String? value) {
-    if (value == null || value.trim().isEmpty) return 'Email is required';
-    if (!_emailRegex.hasMatch(value.trim())) return 'Enter a valid email';
-    return null;
-  }
-
-  static String? phone(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Phone number is required';
-    }
-    if (!_phoneRegex.hasMatch(value.trim())) {
-      return 'Enter a valid phone number';
-    }
-    return null;
-  }
-
-  static String? fullName(String? value) {
-    if (value == null || value.trim().length < 3) {
-      return 'Enter your full name';
-    }
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return 'Please enter your email address';
+    if (!_emailRegex.hasMatch(v)) return 'Enter a valid email address';
     return null;
   }
 
   static String? password(String? value) {
-    if (value == null || value.isEmpty) return 'Password is required';
-    if (value.length < 8) return 'Password must be at least 8 characters';
-    final hasLetter = RegExp(r'[A-Za-z]').hasMatch(value);
-    final hasDigit = RegExp(r'[0-9]').hasMatch(value);
-    if (!hasLetter || !hasDigit) {
-      return 'Password must contain letters and numbers';
-    }
+    final v = value ?? '';
+    if (v.isEmpty) return 'Please enter your password';
+    if (v.length < 6) return 'Password must be at least 6 characters';
     return null;
   }
 
-  static String? confirmPassword(String? value, String original) {
-    if (value == null || value.isEmpty) return 'Confirm your password';
-    if (value != original) return 'Passwords do not match';
+  static String? organization(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return 'This field is required';
     return null;
   }
 
-  static String? otp(String? value, {int length = 6}) {
-    if (value == null || value.trim().isEmpty) return 'Enter the OTP';
-    if (value.trim().length != length) return 'Enter the full $length-digit code';
+  static String? required(String? value, {String message = 'This field is required'}) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return message;
     return null;
   }
 }

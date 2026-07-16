@@ -1,30 +1,25 @@
-// This is a basic Flutter widget test.
+// Basic smoke test for Career Matrix.
 //
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
+// This verifies the app boots without throwing and that the splash screen
+// (the app's initial route) renders its branding. It intentionally avoids
+// pumping past the splash screen's async auto-login check, since that talks
+// to SharedPreferences and would need plugin mocking to run in a pure
+// widget-test environment — see the flutter_test docs on
+// `SharedPreferences.setMockInitialValues` if you extend this suite.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:career_matrix/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('Career Matrix boots and shows splash branding', (WidgetTester tester) async {
+    await tester.pumpWidget(const CareerMatrixApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Let the splash screen's entrance animation start (but not finish —
+    // avoid triggering its post-delay navigation/async session check).
+    await tester.pump(const Duration(milliseconds: 300));
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('Career Matrix'), findsOneWidget);
+    expect(find.byType(MaterialApp), findsOneWidget);
   });
 }
