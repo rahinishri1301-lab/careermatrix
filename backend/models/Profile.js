@@ -1,0 +1,90 @@
+const mongoose = require('mongoose');
+
+const ProfileSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      unique: true,
+    },
+    bio: {
+      type: String,
+      maxlength: [500, 'Bio cannot exceed 500 characters'],
+      default: '',
+    },
+    phone: {
+      type: String,
+      match: [/^[0-9+\-\s()]{7,20}$/, 'Please provide a valid phone number'],
+    },
+    address: {
+      type: String,
+      maxlength: 250,
+    },
+    department: {
+      type: String,
+      trim: true,
+    },
+    graduationYear: {
+      type: Number,
+      min: [1950, 'Graduation year seems invalid'],
+      max: [2100, 'Graduation year seems invalid'],
+    },
+    currentPosition: {
+      type: String,
+      trim: true,
+    },
+    company: {
+      type: String,
+      trim: true,
+    },
+    linkedin: {
+      type: String,
+      match: [/^https?:\/\/.+/, 'LinkedIn must be a valid URL'],
+    },
+    github: {
+      type: String,
+      match: [/^https?:\/\/.+/, 'GitHub must be a valid URL'],
+    },
+    // Student-specific academic/career fields. Added alongside the
+    // existing alumni/company-oriented fields above — additive only, so
+    // existing Profile documents are unaffected.
+    cgpa: {
+      type: Number,
+      min: [0, 'CGPA cannot be negative'],
+      max: [10, 'CGPA cannot exceed 10'],
+    },
+    areaOfInterest: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+    },
+    careerGoal: {
+      type: String,
+      trim: true,
+      maxlength: 300,
+    },
+    website: {
+      type: String,
+      trim: true,
+    },
+    industry: {
+      type: String,
+      trim: true,
+    },
+    description: {
+      type: String,
+      maxlength: [2000, 'Description cannot exceed 2000 characters'],
+      default: '',
+    },
+    profileImage: {
+      type: String, // relative path to uploaded image
+      default: null,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+module.exports = mongoose.model('Profile', ProfileSchema);

@@ -1,0 +1,29 @@
+# Node
+node_modules/
+backend/node_modules/
+
+# Environment
+.env
+backend/.env
+
+# Flutter / Dart
+.dart_tool/
+build/
+.pub/
+.packages
+
+# Android generated files
+android/.gradle/
+android/local.properties
+android/gradle-error.txt
+*.iml
+
+# Flutter generated files
+**/ephemeral/
+**/.plugin_symlinks/
+
+# Backend uploaded files
+backend/uploads/
+
+# OS files
+.DS_Store
